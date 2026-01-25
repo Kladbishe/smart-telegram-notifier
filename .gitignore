@@ -1,0 +1,12 @@
+# Конфиденциальные данные
+config.py
+
+# Сессия Telegram
+*.session
+*.session-journal
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.env
