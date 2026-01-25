@@ -68,26 +68,18 @@ def get_weather(city, settings):
         print(f"Weather error: {e}")
         return None
 
-def get_next_send_time(schedule):
+def get_today_send_time(schedule):
     now = datetime.now()
     days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+    day_name = days[now.weekday()]
+    day_schedule = schedule.get(day_name, {})
 
-    for i in range(8):
-        check_date = now + timedelta(days=i)
-        day_name = days[check_date.weekday()]
-        day_schedule = schedule.get(day_name, {})
+    if not day_schedule.get("enabled"):
+        return None
 
-        if not day_schedule.get("enabled"):
-            continue
-
-        time_str = day_schedule.get("time", "09:00")
-        hour, minute = map(int, time_str.split(":"))
-        send_time = check_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
-
-        if send_time > now:
-            return send_time
-
-    return None
+    time_str = day_schedule.get("time", "09:00")
+    hour, minute = map(int, time_str.split(":"))
+    return now.replace(hour=hour, minute=minute, second=0, microsecond=0)
 
 async def run_bot():
     client = TelegramClient('session_name', API_ID, API_HASH)
@@ -110,9 +102,9 @@ async def run_bot():
             if not phone:
                 continue
 
-            next_time = get_next_send_time(contact.get("schedule", {}))
+            send_time = get_today_send_time(contact.get("schedule", {}))
 
-            if not next_time:
+            if not send_time:
                 continue
 
             today_key = f"{contact_id}_{now.date()}"
@@ -120,7 +112,7 @@ async def run_bot():
             if today_key in sent_today:
                 continue
 
-            if now >= next_time and now < next_time + timedelta(minutes=5):
+            if now >= send_time and now < send_time + timedelta(minutes=1):
                 try:
                     messages = contact.get("messages", [])
                     if messages:
@@ -145,7 +137,7 @@ async def run_bot():
         for k in old_keys:
             del sent_today[k]
 
-        await asyncio.sleep(30)
+        await asyncio.sleep(10)
 
 if __name__ == "__main__":
     print("Starting Telegram Bot...")
