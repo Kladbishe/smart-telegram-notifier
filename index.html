@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram Bot</title>
+    <link rel="icon" href="data:,">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0d1117;
+            color: #c9d1d9;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #21262d;
+        }
+        h1 { font-size: 20px; font-weight: 600; }
+
+        .btn {
+            background: #238636;
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .btn:hover { background: #2ea043; }
+        .btn-danger { background: #da3633; }
+        .btn-danger:hover { background: #f85149; }
+        .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+        .card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .card-title { font-size: 16px; font-weight: 600; }
+
+        .toggle {
+            position: relative;
+            width: 40px;
+            height: 22px;
+        }
+        .toggle input { opacity: 0; width: 0; height: 0; }
+        .toggle .slider {
+            position: absolute;
+            inset: 0;
+            background: #30363d;
+            border-radius: 22px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .toggle .slider:before {
+            content: "";
+            position: absolute;
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background: #c9d1d9;
+            border-radius: 50%;
+            transition: 0.2s;
+        }
+        .toggle input:checked + .slider { background: #238636; }
+        .toggle input:checked + .slider:before { transform: translateX(18px); }
+
+        .form-group { margin-bottom: 12px; }
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            color: #8b949e;
+            margin-bottom: 4px;
+        }
+        input, select {
+            width: 100%;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: #c9d1d9;
+            font-size: 14px;
+        }
+        input:focus { outline: none; border-color: #58a6ff; }
+
+        .row { display: flex; gap: 12px; }
+        .row > * { flex: 1; }
+
+        .schedule {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .day {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 8px;
+            text-align: center;
+        }
+        .day.active { border-color: #238636; background: rgba(35, 134, 54, 0.1); }
+        .day-name { font-size: 11px; font-weight: 600; margin-bottom: 6px; }
+        .day input[type="time"] {
+            width: 100%;
+            padding: 4px;
+            font-size: 11px;
+            margin-top: 6px;
+        }
+
+        .section {
+            border-top: 1px solid #21262d;
+            padding-top: 12px;
+            margin-top: 12px;
+        }
+        .section-title {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .messages { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+        .msg-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #21262d;
+            padding: 4px 10px;
+            border-radius: 16px;
+            font-size: 12px;
+        }
+        .msg-tag .del {
+            cursor: pointer;
+            color: #f85149;
+            font-weight: bold;
+        }
+
+        .add-msg {
+            display: flex;
+            gap: 8px;
+        }
+        .add-msg input { flex: 1; }
+
+        .weather-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #238636;
+            color: #fff;
+            padding: 12px 20px;
+            border-radius: 6px;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: 0.3s;
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+
+        .empty {
+            text-align: center;
+            padding: 40px;
+            color: #8b949e;
+        }
+
+        @media (max-width: 600px) {
+            .schedule { grid-template-columns: repeat(4, 1fr); }
+            .weather-grid { grid-template-columns: 1fr; }
+            .row { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Telegram Bot Dashboard</h1>
+            <button class="btn" onclick="addContact()">+ Add Contact</button>
+        </header>
+        <div id="contacts"></div>
+    </div>
+    <div class="toast" id="toast">Saved</div>
+
+    <script>
+        const API = '/api';
+        let config = { contacts: [] };
+        const DAYS = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+        const DAY_NAMES = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+        async function load() {
+            const res = await fetch(`${API}/config`);
+            config = await res.json();
+            render();
+        }
+
+        async function save() {
+            await fetch(`${API}/config`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            });
+            showToast();
+        }
+
+        function showToast() {
+            const t = document.getElementById('toast');
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2000);
+        }
+
+        function render() {
+            const el = document.getElementById('contacts');
+            if (!config.contacts.length) {
+                el.innerHTML = '<div class="card empty">No contacts. Click "Add Contact" to start.</div>';
+                return;
+            }
+            el.innerHTML = config.contacts.map((c, i) => renderContact(c, i)).join('');
+        }
+
+        function renderContact(c, idx) {
+            const w = c.weather || {};
+            return `
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">${esc(c.name) || 'New Contact'}</span>
+                        <div style="display:flex;gap:10px;align-items:center">
+                            <label class="toggle">
+                                <input type="checkbox" ${c.enabled ? 'checked' : ''} onchange="upd(${idx},'enabled',this.checked)">
+                                <span class="slider"></span>
+                            </label>
+                            <button class="btn btn-danger btn-sm" onclick="del(${idx})">Delete</button>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="form-group">
+                            <label>Name</label>
+                            <input value="${esc(c.name)}" onchange="upd(${idx},'name',this.value)" placeholder="Contact name">
+                        </div>
+                        <div class="form-group">
+                            <label>Phone</label>
+                            <input value="${esc(c.phone)}" onchange="upd(${idx},'phone',this.value)" placeholder="+1234567890">
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-title">Schedule</div>
+                        <div class="schedule">
+                            ${DAYS.map((d, di) => {
+                                const s = c.schedule?.[d] || {enabled:false,time:'09:00'};
+                                return `
+                                    <div class="day ${s.enabled ? 'active' : ''}" id="day-${idx}-${d}">
+                                        <div class="day-name">${DAY_NAMES[di]}</div>
+                                        <label class="toggle">
+                                            <input type="checkbox" ${s.enabled ? 'checked' : ''}
+                                                onchange="updSched(${idx},'${d}','enabled',this.checked)">
+                                            <span class="slider"></span>
+                                        </label>
+                                        <input type="time" value="${s.time}" onchange="updSched(${idx},'${d}','time',this.value)">
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-title">Messages</div>
+                        <div class="messages">
+                            ${(c.messages||[]).map((m,mi) => `
+                                <span class="msg-tag">${esc(m.slice(0,30))}${m.length>30?'...':''} <span class="del" onclick="delMsg(${idx},${mi})">x</span></span>
+                            `).join('') || '<span style="color:#8b949e">No messages</span>'}
+                        </div>
+                        <div class="add-msg">
+                            <input id="msg-${idx}" placeholder="New message..." onkeypress="if(event.key==='Enter')addMsg(${idx})">
+                            <button class="btn btn-sm" onclick="addMsg(${idx})">Add</button>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-title">
+                            <label class="toggle">
+                                <input type="checkbox" ${w.enabled ? 'checked' : ''} onchange="updW(${idx},'enabled',this.checked)">
+                                <span class="slider"></span>
+                            </label>
+                            Weather Alerts
+                        </div>
+                        ${w.enabled ? `
+                            <div class="weather-grid">
+                                <div class="form-group">
+                                    <label>City</label>
+                                    <input value="${esc(w.city)}" onchange="updW(${idx},'city',this.value)">
+                                </div>
+                                <div class="form-group">
+                                    <label>Cold below (C)</label>
+                                    <input type="number" value="${w.cold_threshold||15}" onchange="updW(${idx},'cold_threshold',+this.value)">
+                                </div>
+                                <div class="form-group">
+                                    <label>Heat above (C)</label>
+                                    <input type="number" value="${w.heat_threshold||30}" onchange="updW(${idx},'heat_threshold',+this.value)">
+                                </div>
+                                <div class="form-group">
+                                    <label>Rain chance (%)</label>
+                                    <input type="number" value="${w.rain_threshold||60}" onchange="updW(${idx},'rain_threshold',+this.value)">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Cold message</label>
+                                <input value="${esc(w.cold_message)}" onchange="updW(${idx},'cold_message',this.value)">
+                            </div>
+                            <div class="form-group">
+                                <label>Heat message</label>
+                                <input value="${esc(w.heat_message)}" onchange="updW(${idx},'heat_message',this.value)">
+                            </div>
+                            <div class="form-group">
+                                <label>Rain message</label>
+                                <input value="${esc(w.rain_message)}" onchange="updW(${idx},'rain_message',this.value)">
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        function upd(idx, key, val) {
+            config.contacts[idx][key] = val;
+            save();
+            if (key === 'enabled') render();
+        }
+
+        function updSched(idx, day, key, val) {
+            if (!config.contacts[idx].schedule) config.contacts[idx].schedule = {};
+            if (!config.contacts[idx].schedule[day]) config.contacts[idx].schedule[day] = {enabled:false,time:'09:00'};
+            config.contacts[idx].schedule[day][key] = val;
+            save();
+            const el = document.getElementById(`day-${idx}-${day}`);
+            if (el && key === 'enabled') el.classList.toggle('active', val);
+        }
+
+        function updW(idx, key, val) {
+            if (!config.contacts[idx].weather) config.contacts[idx].weather = {};
+            config.contacts[idx].weather[key] = val;
+            save();
+            if (key === 'enabled') render();
+        }
+
+        function addMsg(idx) {
+            const inp = document.getElementById(`msg-${idx}`);
+            if (inp.value.trim()) {
+                if (!config.contacts[idx].messages) config.contacts[idx].messages = [];
+                config.contacts[idx].messages.push(inp.value.trim());
+                inp.value = '';
+                save();
+                render();
+            }
+        }
+
+        function delMsg(idx, mi) {
+            config.contacts[idx].messages.splice(mi, 1);
+            save();
+            render();
+        }
+
+        function addContact() {
+            config.contacts.push({
+                id: Date.now().toString(),
+                name: '',
+                phone: '',
+                enabled: true,
+                messages: [],
+                schedule: {
+                    monday:{enabled:true,time:'09:00'},tuesday:{enabled:true,time:'09:00'},
+                    wednesday:{enabled:true,time:'09:00'},thursday:{enabled:true,time:'09:00'},
+                    friday:{enabled:true,time:'09:00'},saturday:{enabled:true,time:'10:00'},
+                    sunday:{enabled:true,time:'10:00'}
+                },
+                weather: { enabled:false, city:'Tel Aviv', cold_threshold:15, heat_threshold:30, rain_threshold:60,
+                    cold_message:"It's cold today!", heat_message:"It's hot today!", rain_message:"Take an umbrella!" }
+            });
+            save();
+            render();
+        }
+
+        function del(idx) {
+            if (confirm('Delete this contact?')) {
+                config.contacts.splice(idx, 1);
+                save();
+                render();
+            }
+        }
+
+        function esc(s) {
+            if (!s) return '';
+            return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
+        load();
+    </script>
+</body>
+</html>

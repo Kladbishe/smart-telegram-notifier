@@ -1,0 +1,33 @@
+{
+  "contacts": [
+    {
+      "id": "1",
+      "name": "Contact Name",
+      "phone": "+1234567890",
+      "enabled": true,
+      "messages": [
+        "Good morning!",
+        "Have a great day!"
+      ],
+      "schedule": {
+        "monday": { "enabled": true, "time": "09:00" },
+        "tuesday": { "enabled": true, "time": "09:00" },
+        "wednesday": { "enabled": true, "time": "09:00" },
+        "thursday": { "enabled": true, "time": "09:00" },
+        "friday": { "enabled": true, "time": "09:00" },
+        "saturday": { "enabled": true, "time": "10:00" },
+        "sunday": { "enabled": true, "time": "10:00" }
+      },
+      "weather": {
+        "enabled": true,
+        "city": "New York",
+        "cold_threshold": 15,
+        "heat_threshold": 30,
+        "rain_threshold": 60,
+        "cold_message": "It's cold today, dress warm!",
+        "heat_message": "It's hot today, stay hydrated!",
+        "rain_message": "Chance of rain, take an umbrella!"
+      }
+    }
+  ]
+}

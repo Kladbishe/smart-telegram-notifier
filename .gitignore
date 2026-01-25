@@ -1,5 +1,6 @@
-# Конфиденциальные данные
+# Credentials
 config.py
+config.json
 
 # Сессия Telegram
 *.session
