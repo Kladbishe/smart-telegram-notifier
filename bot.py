@@ -7,13 +7,48 @@ from telethon import TelegramClient
 from config import API_ID, API_HASH, PHONE
 
 CONFIG_FILE = "config.json"
+LOGS_FILE = "logs.json"
+STATUS_FILE = "status.json"
 WEATHER_API = "https://api.open-meteo.com/v1/forecast"
-
 GEOCODE_API = "https://geocoding-api.open-meteo.com/v1/search"
+MAX_LOGS = 100
 
 def load_config():
     with open(CONFIG_FILE, "r") as f:
         return json.load(f)
+
+def update_status(connected):
+    try:
+        with open(STATUS_FILE, "w") as f:
+            json.dump({
+                "connected": connected,
+                "timestamp": datetime.now().isoformat()
+            }, f)
+    except:
+        pass
+
+def add_log(log_type, message, contact=None):
+    try:
+        try:
+            with open(LOGS_FILE, "r") as f:
+                logs = json.load(f)
+        except:
+            logs = []
+
+        logs.insert(0, {
+            "time": datetime.now().strftime("%H:%M:%S"),
+            "date": datetime.now().strftime("%Y-%m-%d"),
+            "type": log_type,
+            "message": message,
+            "contact": contact
+        })
+
+        logs = logs[:MAX_LOGS]
+
+        with open(LOGS_FILE, "w") as f:
+            json.dump(logs, f, ensure_ascii=False)
+    except:
+        pass
 
 def get_coordinates(city):
     try:
@@ -85,6 +120,8 @@ async def run_bot():
     client = TelegramClient('session_name', API_ID, API_HASH)
     await client.start(phone=PHONE)
     print("Bot connected to Telegram")
+    add_log("info", "Bot connected to Telegram")
+    update_status(True)
 
     sent_today = {}
 
@@ -119,6 +156,7 @@ async def run_bot():
                         msg = random.choice(messages)
                         await client.send_message(phone, msg)
                         print(f"Sent to {contact.get('name')}: {msg}")
+                        add_log("sent", msg, contact.get('name'))
 
                     weather_settings = contact.get("weather", {})
                     if weather_settings.get("enabled"):
@@ -127,18 +165,22 @@ async def run_bot():
                         if weather_msg:
                             await client.send_message(phone, weather_msg)
                             print(f"Sent weather to {contact.get('name')}")
+                            add_log("weather", weather_msg, contact.get('name'))
 
                     sent_today[today_key] = True
 
                 except Exception as e:
                     print(f"Error sending to {contact.get('name')}: {e}")
+                    add_log("error", str(e), contact.get('name'))
 
         old_keys = [k for k in sent_today if k.split("_")[1] != str(now.date())]
         for k in old_keys:
             del sent_today[k]
 
+        update_status(client.is_connected())
         await asyncio.sleep(10)
 
 if __name__ == "__main__":
     print("Starting Telegram Bot...")
+    add_log("info", "Bot starting...")
     asyncio.run(run_bot())

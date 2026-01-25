@@ -2,7 +2,11 @@
 config.py
 config.json
 
-# Сессия Telegram
+# Runtime data
+logs.json
+status.json
+
+# Telegram session
 *.session
 *.session-journal
 
@@ -11,3 +15,9 @@ __pycache__/
 *.pyc
 venv/
 .env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+.DS_Store

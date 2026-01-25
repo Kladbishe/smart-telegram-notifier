@@ -1,12 +1,16 @@
-from flask import Flask, jsonify, request, send_file
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 import json
 import os
+from datetime import datetime
+from config import PORT
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='dashboard')
 CORS(app)
 
 CONFIG_FILE = "config.json"
+LOGS_FILE = "logs.json"
+STATUS_FILE = "status.json"
 
 def load_config():
     if os.path.exists(CONFIG_FILE):
@@ -20,7 +24,11 @@ def save_config(config):
 
 @app.route("/")
 def index():
-    return send_file("index.html")
+    return send_from_directory('dashboard', 'index.html')
+
+@app.route("/<path:filename>")
+def static_files(filename):
+    return send_from_directory('dashboard', filename)
 
 @app.route("/api/config", methods=["GET"])
 def get_config():
@@ -63,5 +71,33 @@ def delete_contact(contact_id):
     save_config(config)
     return jsonify({"status": "ok"})
 
+@app.route("/api/logs", methods=["GET"])
+def get_logs():
+    if os.path.exists(LOGS_FILE):
+        with open(LOGS_FILE, "r") as f:
+            return jsonify(json.load(f))
+    return jsonify([])
+
+@app.route("/api/logs", methods=["DELETE"])
+def clear_logs():
+    with open(LOGS_FILE, "w") as f:
+        json.dump([], f)
+    return jsonify({"status": "ok"})
+
+@app.route("/api/status", methods=["GET"])
+def get_status():
+    if os.path.exists(STATUS_FILE):
+        try:
+            with open(STATUS_FILE, "r") as f:
+                status = json.load(f)
+            last_update = datetime.fromisoformat(status.get("timestamp", ""))
+            age = (datetime.now() - last_update).total_seconds()
+            if age > 30:
+                return jsonify({"connected": False, "stale": True})
+            return jsonify(status)
+        except:
+            pass
+    return jsonify({"connected": False})
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080, debug=False)
+    app.run(host="0.0.0.0", port=PORT, debug=False)
