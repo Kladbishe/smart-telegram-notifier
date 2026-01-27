@@ -86,18 +86,18 @@ def get_weather(city, settings):
         alerts = []
 
         if min_apparent < settings.get("cold_threshold", 15):
-            alerts.append(settings.get("cold_message", "It's cold today!"))
+            alerts.append(settings.get("cold_message") or "одевайся потеплее")
 
         if max_temp > settings.get("heat_threshold", 30):
-            alerts.append(settings.get("heat_message", "It's hot today!"))
+            alerts.append(settings.get("heat_message") or "будет жарко")
 
         if max_rain >= settings.get("rain_threshold", 60):
-            alerts.append(settings.get("rain_message", "Take an umbrella!"))
+            alerts.append(settings.get("rain_message") or "возможно будет дождь")
 
         if not alerts:
             return None
 
-        return f"Weather {min_temp:.0f}-{max_temp:.0f}C\n" + "\n".join(alerts)
+        return f"{min_temp:.0f}-{max_temp:.0f}°С, " + ", ".join(alerts)
 
     except Exception as e:
         print(f"Weather error: {e}")
