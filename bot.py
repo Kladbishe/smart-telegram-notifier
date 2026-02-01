@@ -124,60 +124,87 @@ async def run_bot():
     update_status(True)
 
     sent_today = {}
+    last_messages = {}
+    last_connection_check = datetime.now()
 
     while True:
-        config = load_config()
-        now = datetime.now()
+        try:
+            now = datetime.now()
+            if (now - last_connection_check).total_seconds() >= 43200:
+                last_connection_check = now
+                if not client.is_connected():
+                    print("Disconnected, reconnecting...")
+                    add_log("info", "Reconnecting to Telegram...")
+                    await client.connect()
+                    if not await client.is_user_authorized():
+                        await client.start(phone=PHONE)
+                    print("Reconnected to Telegram")
+                    add_log("info", "Reconnected to Telegram")
 
-        for contact in config.get("contacts", []):
-            if not contact.get("enabled"):
-                continue
+            config = load_config()
+            now = datetime.now()
 
-            contact_id = contact.get("id")
-            phone = contact.get("phone")
+            for contact in config.get("contacts", []):
+                if not contact.get("enabled"):
+                    continue
 
-            if not phone:
-                continue
+                contact_id = contact.get("id")
+                phone = contact.get("phone")
 
-            send_time = get_today_send_time(contact.get("schedule", {}))
+                if not phone:
+                    continue
 
-            if not send_time:
-                continue
+                send_time = get_today_send_time(contact.get("schedule", {}))
 
-            today_key = f"{contact_id}_{now.date()}"
+                if not send_time:
+                    continue
 
-            if today_key in sent_today:
-                continue
+                today_key = f"{contact_id}_{now.date()}"
 
-            if now >= send_time and now < send_time + timedelta(minutes=1):
-                try:
-                    messages = contact.get("messages", [])
-                    if messages:
-                        msg = random.choice(messages)
-                        await client.send_message(phone, msg)
-                        print(f"Sent to {contact.get('name')}: {msg}")
-                        add_log("sent", msg, contact.get('name'))
+                if today_key in sent_today:
+                    continue
 
-                    weather_settings = contact.get("weather", {})
-                    if weather_settings.get("enabled"):
-                        city = weather_settings.get("city", "Tel Aviv")
-                        weather_msg = get_weather(city, weather_settings)
-                        if weather_msg:
-                            await client.send_message(phone, weather_msg)
-                            print(f"Sent weather to {contact.get('name')}")
-                            add_log("weather", weather_msg, contact.get('name'))
+                if now >= send_time and now < send_time + timedelta(minutes=1):
+                    try:
+                        messages = contact.get("messages", [])
+                        if messages:
+                            last = last_messages.get(contact_id)
+                            if len(messages) > 1 and last in messages:
+                                choices = [m for m in messages if m != last]
+                            else:
+                                choices = messages
+                            msg = random.choice(choices)
+                            await client.send_message(phone, msg)
+                            last_messages[contact_id] = msg
+                            print(f"Sent to {contact.get('name')}: {msg}")
+                            add_log("sent", msg, contact.get('name'))
 
-                    sent_today[today_key] = True
+                        weather_settings = contact.get("weather", {})
+                        if weather_settings.get("enabled"):
+                            city = weather_settings.get("city", "Tel Aviv")
+                            weather_msg = get_weather(city, weather_settings)
+                            if weather_msg:
+                                await client.send_message(phone, weather_msg)
+                                print(f"Sent weather to {contact.get('name')}")
+                                add_log("weather", weather_msg, contact.get('name'))
 
-                except Exception as e:
-                    print(f"Error sending to {contact.get('name')}: {e}")
-                    add_log("error", str(e), contact.get('name'))
+                        sent_today[today_key] = True
 
-        old_keys = [k for k in sent_today if k.split("_")[1] != str(now.date())]
-        for k in old_keys:
-            del sent_today[k]
+                    except Exception as e:
+                        print(f"Error sending to {contact.get('name')}: {e}")
+                        add_log("error", str(e), contact.get('name'))
 
-        update_status(client.is_connected())
+            old_keys = [k for k in sent_today if k.split("_")[1] != str(now.date())]
+            for k in old_keys:
+                del sent_today[k]
+
+            update_status(client.is_connected())
+
+        except ConnectionError:
+            print("Connection lost, will retry...")
+            add_log("error", "Connection lost, retrying...")
+            update_status(False)
+
         await asyncio.sleep(10)
 
 if __name__ == "__main__":
