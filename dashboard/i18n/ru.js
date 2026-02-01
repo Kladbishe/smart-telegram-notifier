@@ -35,5 +35,21 @@ const ru = {
     // Погодные сообщения по умолчанию
     default_cold_message: 'одевайся потеплее',
     default_heat_message: 'будет жарко',
-    default_rain_message: 'возможно будет дождь'
+    default_rain_message: 'возможно будет дождь',
+    // Крипто
+    crypto: 'Крипто',
+    crypto_settings: 'Крипто-алерты',
+    crypto_alerts: 'Крипто-алерты',
+    crypto_coins: 'Монеты',
+    crypto_sent: 'Крипто',
+    send_to_self: 'В избранное',
+    add_coin: '+ Монета',
+    add_alert: '+ Алерт',
+    symbol: 'Символ',
+    price_above: 'Цена выше',
+    price_below: 'Цена ниже',
+    change_above: 'Рост >',
+    change_below: 'Падение <',
+    no_coins_configured: 'Нет монет. Настройте в разделе крипто выше',
+    check_interval: 'Интервал проверки (сек)'
 };

@@ -35,5 +35,21 @@ const en = {
     // Default weather messages
     default_cold_message: 'dress warmly',
     default_heat_message: 'it will be hot',
-    default_rain_message: 'it might rain'
+    default_rain_message: 'it might rain',
+    // Crypto
+    crypto: 'Crypto',
+    crypto_settings: 'Crypto Alerts',
+    crypto_alerts: 'Crypto alerts',
+    crypto_coins: 'Coins',
+    crypto_sent: 'Crypto',
+    send_to_self: 'To Saved Messages',
+    add_coin: '+ Coin',
+    add_alert: '+ Alert',
+    symbol: 'Symbol',
+    price_above: 'Price above',
+    price_below: 'Price below',
+    change_above: 'Change above',
+    change_below: 'Change below',
+    no_coins_configured: 'No coins. Configure in crypto settings above',
+    check_interval: 'Check interval (sec)'
 };

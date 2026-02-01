@@ -1,4 +1,10 @@
 {
+  "crypto": {
+    "enabled": false,
+    "check_interval": 60,
+    "send_to_self": true,
+    "coins": []
+  },
   "contacts": [
     {
       "id": "1",
@@ -27,6 +33,10 @@
         "cold_message": "It's cold today, dress warm!",
         "heat_message": "It's hot today, stay hydrated!",
         "rain_message": "Chance of rain, take an umbrella!"
+      },
+      "crypto": {
+        "enabled": false,
+        "coins": []
       }
     }
   ]

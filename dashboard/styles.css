@@ -307,6 +307,7 @@ h1 { font-size: 22px; color: #fff; }
 }
 .log-item.sent { border-left-color: #38ef7d; }
 .log-item.weather { border-left-color: #00bcd4; }
+.log-item.crypto { border-left-color: #f7931a; }
 .log-item.error { border-left-color: #f5576c; }
 
 .log-time { color: #888; font-size: 10px; }
@@ -346,6 +347,70 @@ h1 { font-size: 22px; color: #fff; }
     margin-top: 20px;
 }
 .modal-btns .btn { flex: 1; }
+
+/* Crypto panel */
+.crypto-panel {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid #2a2a5a;
+    border-radius: 12px;
+    margin-bottom: 20px;
+}
+.crypto-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    cursor: pointer;
+}
+.crypto-panel-header:hover { background: rgba(255,255,255,0.03); border-radius: 12px; }
+.crypto-panel-body { padding: 0 15px 15px; }
+.crypto-expand { color: #888; font-size: 12px; }
+.coin-card {
+    background: rgba(0,0,0,0.2);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+}
+.coin-header {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+.alerts-list { margin-top: 8px; }
+.alert-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    padding: 6px 8px;
+    background: rgba(0,0,0,0.15);
+    border-radius: 6px;
+}
+.alert-row select {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid #2a2a5a;
+    border-radius: 6px;
+    color: #fff;
+    padding: 6px 8px;
+    font-size: 12px;
+}
+.alert-row input[type="number"] { width: 100px; }
+.coins-checklist {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+.coin-check-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 10px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 6px;
+}
+.coin-label { font-size: 13px; font-weight: 500; color: #fff; }
+.coins-list { margin-bottom: 12px; }
 
 @media (max-width: 900px) {
     .layout { grid-template-columns: 1fr; }

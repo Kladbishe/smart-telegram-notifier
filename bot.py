@@ -11,6 +11,7 @@ LOGS_FILE = "logs.json"
 STATUS_FILE = "status.json"
 WEATHER_API = "https://api.open-meteo.com/v1/forecast"
 GEOCODE_API = "https://geocoding-api.open-meteo.com/v1/search"
+COINGECKO_API = "https://api.coingecko.com/api/v3/simple/price"
 MAX_LOGS = 100
 
 def load_config():
@@ -103,6 +104,60 @@ def get_weather(city, settings):
         print(f"Weather error: {e}")
         return None
 
+def get_crypto_prices(coin_ids):
+    if not coin_ids:
+        return None
+    ids_str = ",".join(coin_ids)
+    url = f"{COINGECKO_API}?ids={ids_str}&vs_currencies=usd&include_24hr_change=true"
+    try:
+        with urllib.request.urlopen(url, timeout=15) as resp:
+            return json.loads(resp.read().decode())
+    except Exception as e:
+        print(f"Crypto API error: {e}")
+        return None
+
+def format_crypto_alert(symbol, price, change_24h):
+    sign = "+" if change_24h >= 0 else ""
+    return f"{symbol} ${price:,.0f} ({sign}{change_24h:.1f}%)"
+
+def check_crypto_alerts(crypto_config, prices, alert_state):
+    if not prices:
+        return []
+    triggered = []
+    for coin in crypto_config.get("coins", []):
+        coin_id = coin.get("id")
+        symbol = coin.get("symbol", coin_id)
+        coin_data = prices.get(coin_id)
+        if not coin_data:
+            continue
+        price = coin_data.get("usd", 0)
+        change = coin_data.get("usd_24h_change", 0) or 0
+        for alert in coin.get("alerts", []):
+            if not alert.get("enabled"):
+                continue
+            alert_type = alert["type"]
+            alert_value = alert["value"]
+            state_key = f"{coin_id}_{alert_type}_{alert_value}"
+            condition_met = False
+            if alert_type == "price_above":
+                condition_met = price >= alert_value
+            elif alert_type == "price_below":
+                condition_met = price <= alert_value
+            elif alert_type == "change_above":
+                condition_met = change >= alert_value
+            elif alert_type == "change_below":
+                condition_met = change <= alert_value
+            if condition_met:
+                if state_key not in alert_state:
+                    alert_state[state_key] = True
+                    triggered.append({
+                        "coin_id": coin_id,
+                        "message": format_crypto_alert(symbol, price, change)
+                    })
+            else:
+                alert_state.pop(state_key, None)
+    return triggered
+
 def get_today_send_time(schedule):
     now = datetime.now()
     days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
@@ -126,6 +181,8 @@ async def run_bot():
     sent_today = {}
     last_messages = {}
     last_connection_check = datetime.now()
+    last_crypto_check = datetime.min
+    crypto_alert_state = {}
 
     while True:
         try:
@@ -197,6 +254,37 @@ async def run_bot():
             old_keys = [k for k in sent_today if k.split("_")[1] != str(now.date())]
             for k in old_keys:
                 del sent_today[k]
+
+            # Crypto price alerts
+            crypto_config = config.get("crypto", {})
+            if crypto_config.get("enabled"):
+                interval = crypto_config.get("check_interval", 60)
+                if (now - last_crypto_check).total_seconds() >= interval:
+                    last_crypto_check = now
+                    coin_ids = [c["id"] for c in crypto_config.get("coins", []) if c.get("id")]
+                    if coin_ids:
+                        prices = get_crypto_prices(coin_ids)
+                        alerts = check_crypto_alerts(crypto_config, prices, crypto_alert_state)
+                        for alert in alerts:
+                            msg = alert["message"]
+                            if crypto_config.get("send_to_self"):
+                                try:
+                                    await client.send_message("me", msg)
+                                    add_log("crypto", msg, "Saved Messages")
+                                except Exception as e:
+                                    print(f"Crypto self-send error: {e}")
+                            for contact in config.get("contacts", []):
+                                if not contact.get("enabled"):
+                                    continue
+                                c_crypto = contact.get("crypto", {})
+                                if not c_crypto.get("enabled"):
+                                    continue
+                                if alert["coin_id"] in c_crypto.get("coins", []):
+                                    try:
+                                        await client.send_message(contact["phone"], msg)
+                                        add_log("crypto", msg, contact.get("name"))
+                                    except Exception as e:
+                                        print(f"Crypto send error: {e}")
 
             update_status(client.is_connected())
 
