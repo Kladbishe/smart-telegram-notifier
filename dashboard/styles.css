@@ -56,6 +56,23 @@ h1 { font-size: 22px; color: #fff; }
 }
 .lang-btn.active { background: #4a4a8a; color: #fff; }
 
+.help-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: transparent;
+    border: 1px solid #4a4a8a;
+    color: #aaa;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+.help-btn:hover { background: #4a4a8a; color: #fff; }
+
 .btn {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: #fff;
@@ -74,10 +91,16 @@ h1 { font-size: 22px; color: #fff; }
 .btn-secondary { background: #2a2a5a; }
 
 .contacts-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    display: flex;
     gap: 15px;
-    align-items: start;
+    align-items: flex-start;
+}
+.contacts-column {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
 }
 
 .mini-card {
@@ -333,7 +356,7 @@ h1 { font-size: 22px; color: #fff; }
     border-radius: 12px;
     padding: 25px;
     width: 90%;
-    max-width: 400px;
+    max-width: 480px;
 }
 .modal-title {
     font-size: 18px;
@@ -348,69 +371,89 @@ h1 { font-size: 22px; color: #fff; }
 }
 .modal-btns .btn { flex: 1; }
 
-/* Crypto panel */
-.crypto-panel {
-    background: rgba(255,255,255,0.05);
-    border: 1px solid #2a2a5a;
-    border-radius: 12px;
-    margin-bottom: 20px;
+.help-text {
+    white-space: pre-line;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #ccc;
+    max-height: 60vh;
+    overflow-y: auto;
 }
-.crypto-panel-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 15px;
-    cursor: pointer;
-}
-.crypto-panel-header:hover { background: rgba(255,255,255,0.03); border-radius: 12px; }
-.crypto-panel-body { padding: 0 15px 15px; }
-.crypto-expand { color: #888; font-size: 12px; }
+
+/* Crypto */
+.coins-list { margin-bottom: 12px; }
 .coin-card {
     background: rgba(0,0,0,0.2);
     border-radius: 8px;
-    padding: 12px;
-    margin-bottom: 10px;
+    padding: 10px;
+    margin-bottom: 8px;
 }
 .coin-header {
     display: flex;
-    gap: 10px;
     align-items: center;
+    gap: 4px;
+    margin-bottom: 6px;
 }
-.alerts-list { margin-top: 8px; }
+.coin-header .msg-del { margin-left: 0; }
+.coin-symbol {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid #2a2a5a;
+    border-radius: 6px;
+    color: #f7931a;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 6px 10px;
+    text-transform: uppercase;
+    width: 90px;
+    flex: none;
+}
+.coin-symbol:focus { outline: none; border-color: #f7931a; }
+.alerts-list { margin-top: 6px; }
 .alert-row {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 6px;
-    padding: 6px 8px;
+    gap: 4px;
+    margin-bottom: 4px;
+    padding: 4px 6px;
     background: rgba(0,0,0,0.15);
     border-radius: 6px;
 }
 .alert-row select {
     background: rgba(0,0,0,0.3);
     border: 1px solid #2a2a5a;
-    border-radius: 6px;
+    border-radius: 4px;
     color: #fff;
-    padding: 6px 8px;
-    font-size: 12px;
+    padding: 3px 2px;
+    font-size: 10px;
+    min-width: 0;
+    width: auto;
+    flex: none;
 }
-.alert-row input[type="number"] { width: 100px; }
-.coins-checklist {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    margin-bottom: 12px;
+.alert-row input[type="text"] {
+    width: 80px;
+    flex: none;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid #2a2a5a;
+    border-radius: 4px;
+    color: #fff;
+    padding: 4px 6px;
+    font-size: 11px;
+    text-align: center;
 }
-.coin-check-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 6px 10px;
-    background: rgba(0,0,0,0.2);
-    border-radius: 6px;
+.alert-row input[type="text"]:focus { outline: none; border-color: #667eea; }
+.alert-unit { font-size: 11px; color: #888; min-width: 12px; }
+.alert-repeat {
+    cursor: pointer;
+    font-size: 18px;
+    color: #555;
+    padding: 0 3px;
+    user-select: none;
+    line-height: 1;
 }
-.coin-label { font-size: 13px; font-weight: 500; color: #fff; }
-.coins-list { margin-bottom: 12px; }
+.alert-repeat:hover { color: #888; }
+.alert-repeat.active { color: #f7931a; }
+.alert-row .toggle-mini { transform: scale(0.7); }
+.alert-row .msg-del { font-size: 14px; margin-left: 2px; }
 
 @media (max-width: 900px) {
     .layout { grid-template-columns: 1fr; }

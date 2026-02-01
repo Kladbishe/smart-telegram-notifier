@@ -48,8 +48,14 @@ const en = {
     symbol: 'Symbol',
     price_above: 'Price above',
     price_below: 'Price below',
-    change_above: 'Change above',
-    change_below: 'Change below',
+    change_above: 'Rise above',
+    change_below: 'Drop above',
+    repeat: 'Repeat',
     no_coins_configured: 'No coins. Configure in crypto settings above',
-    check_interval: 'Check interval (sec)'
+    check_interval: 'Check interval (sec)',
+    // Help
+    help: '?',
+    help_title: 'How crypto alerts work',
+    help_crypto: 'Alert types:\n• Price above / below — triggers when coin price reaches the threshold ($)\n• Rise above — triggers when 24h growth exceeds the specified %\n• Drop above — triggers when 24h drop exceeds the specified %\n\nPrice checking:\n• Prices are checked every 60 seconds via CoinGecko API\n• First check — ~10 sec after bot starts\n\nCondition reset:\n• Alert is sent once when the condition triggers\n• When condition stops being true — flag resets\n• On next trigger — alert will be sent again\n\nRepeat mode ↻:\n• For price: alert on every check while condition is active\n• For % change: after alert, current price is saved as new baseline. Next alert — when price changes by X% from this new baseline\n\nMessage format:\nBTC $98,500 (+3.2%)',
+    help_close: 'Got it'
 };

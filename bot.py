@@ -1,7 +1,9 @@
 import asyncio
 import json
 import random
+import ssl
 import urllib.request
+import certifi
 from datetime import datetime, timedelta
 from telethon import TelegramClient
 from config import API_ID, API_HASH, PHONE
@@ -13,6 +15,43 @@ WEATHER_API = "https://api.open-meteo.com/v1/forecast"
 GEOCODE_API = "https://geocoding-api.open-meteo.com/v1/search"
 COINGECKO_API = "https://api.coingecko.com/api/v3/simple/price"
 MAX_LOGS = 100
+SSL_CTX = ssl.create_default_context(cafile=certifi.where())
+
+SYMBOL_TO_COINGECKO = {
+    "btc": "bitcoin",
+    "eth": "ethereum",
+    "xrp": "ripple",
+    "sol": "solana",
+    "ada": "cardano",
+    "doge": "dogecoin",
+    "dot": "polkadot",
+    "matic": "matic-network",
+    "pol": "matic-network",
+    "avax": "avalanche-2",
+    "link": "chainlink",
+    "shib": "shiba-inu",
+    "ltc": "litecoin",
+    "bch": "bitcoin-cash",
+    "uni": "uniswap",
+    "xlm": "stellar",
+    "atom": "cosmos",
+    "near": "near",
+    "apt": "aptos",
+    "sui": "sui",
+    "ton": "the-open-network",
+    "trx": "tron",
+    "bnb": "binancecoin",
+    "etc": "ethereum-classic",
+    "fil": "filecoin",
+    "vet": "vechain",
+    "algo": "algorand",
+    "icp": "internet-computer",
+    "arb": "arbitrum",
+    "op": "optimism",
+    "pepe": "pepe",
+    "usdt": "tether",
+    "usdc": "usd-coin",
+}
 
 def load_config():
     with open(CONFIG_FILE, "r") as f:
@@ -54,7 +93,7 @@ def add_log(log_type, message, contact=None):
 def get_coordinates(city):
     try:
         url = f"{GEOCODE_API}?name={city}&count=1"
-        with urllib.request.urlopen(url, timeout=10) as resp:
+        with urllib.request.urlopen(url, timeout=10, context=SSL_CTX) as resp:
             data = json.loads(resp.read().decode())
             if data.get("results"):
                 r = data["results"][0]
@@ -68,7 +107,7 @@ def get_weather(city, settings):
     url = f"{WEATHER_API}?latitude={lat}&longitude={lon}&hourly=temperature_2m,precipitation_probability,apparent_temperature&forecast_days=1"
 
     try:
-        with urllib.request.urlopen(url, timeout=10) as resp:
+        with urllib.request.urlopen(url, timeout=10, context=SSL_CTX) as resp:
             data = json.loads(resp.read().decode())
 
         hourly = data.get("hourly", {})
@@ -86,7 +125,7 @@ def get_weather(city, settings):
 
         alerts = []
 
-        if min_apparent < settings.get("cold_threshold", 15):
+        if min_temp < settings.get("cold_threshold", 15):
             alerts.append(settings.get("cold_message") or "одевайся потеплее")
 
         if max_temp > settings.get("heat_threshold", 30):
@@ -110,7 +149,7 @@ def get_crypto_prices(coin_ids):
     ids_str = ",".join(coin_ids)
     url = f"{COINGECKO_API}?ids={ids_str}&vs_currencies=usd&include_24hr_change=true"
     try:
-        with urllib.request.urlopen(url, timeout=15) as resp:
+        with urllib.request.urlopen(url, timeout=15, context=SSL_CTX) as resp:
             return json.loads(resp.read().decode())
     except Exception as e:
         print(f"Crypto API error: {e}")
@@ -120,13 +159,15 @@ def format_crypto_alert(symbol, price, change_24h):
     sign = "+" if change_24h >= 0 else ""
     return f"{symbol} ${price:,.0f} ({sign}{change_24h:.1f}%)"
 
-def check_crypto_alerts(crypto_config, prices, alert_state):
+def check_crypto_alerts(crypto_config, prices, alert_state, contact_id=""):
     if not prices:
         return []
     triggered = []
     for coin in crypto_config.get("coins", []):
-        coin_id = coin.get("id")
-        symbol = coin.get("symbol", coin_id)
+        symbol = coin.get("symbol", "").upper()
+        coin_id = SYMBOL_TO_COINGECKO.get(symbol.lower())
+        if not coin_id:
+            continue
         coin_data = prices.get(coin_id)
         if not coin_data:
             continue
@@ -137,7 +178,7 @@ def check_crypto_alerts(crypto_config, prices, alert_state):
                 continue
             alert_type = alert["type"]
             alert_value = alert["value"]
-            state_key = f"{coin_id}_{alert_type}_{alert_value}"
+            state_key = f"{contact_id}_{coin_id}_{alert_type}_{alert_value}"
             condition_met = False
             if alert_type == "price_above":
                 condition_met = price >= alert_value
@@ -146,14 +187,34 @@ def check_crypto_alerts(crypto_config, prices, alert_state):
             elif alert_type == "change_above":
                 condition_met = change >= alert_value
             elif alert_type == "change_below":
-                condition_met = change <= alert_value
+                condition_met = change <= -alert_value
             if condition_met:
-                if state_key not in alert_state:
-                    alert_state[state_key] = True
+                prev = alert_state.get(state_key)
+                if prev is None:
+                    if alert.get("repeat") and alert_type.startswith("change"):
+                        alert_state[state_key] = price
+                    else:
+                        alert_state[state_key] = True
                     triggered.append({
                         "coin_id": coin_id,
                         "message": format_crypto_alert(symbol, price, change)
                     })
+                elif alert.get("repeat"):
+                    if alert_type.startswith("change") and isinstance(prev, (int, float)):
+                        pct = ((price - prev) / prev) * 100 if prev else 0
+                        fire = (alert_type == "change_above" and pct >= alert_value) or \
+                               (alert_type == "change_below" and pct <= -alert_value)
+                        if fire:
+                            alert_state[state_key] = price
+                            triggered.append({
+                                "coin_id": coin_id,
+                                "message": format_crypto_alert(symbol, price, change)
+                            })
+                    else:
+                        triggered.append({
+                            "coin_id": coin_id,
+                            "message": format_crypto_alert(symbol, price, change)
+                        })
             else:
                 alert_state.pop(state_key, None)
     return triggered
@@ -255,36 +316,38 @@ async def run_bot():
             for k in old_keys:
                 del sent_today[k]
 
-            # Crypto price alerts
-            crypto_config = config.get("crypto", {})
-            if crypto_config.get("enabled"):
-                interval = crypto_config.get("check_interval", 60)
-                if (now - last_crypto_check).total_seconds() >= interval:
-                    last_crypto_check = now
-                    coin_ids = [c["id"] for c in crypto_config.get("coins", []) if c.get("id")]
-                    if coin_ids:
-                        prices = get_crypto_prices(coin_ids)
-                        alerts = check_crypto_alerts(crypto_config, prices, crypto_alert_state)
-                        for alert in alerts:
-                            msg = alert["message"]
-                            if crypto_config.get("send_to_self"):
+            # Crypto price alerts (per-contact)
+            if (now - last_crypto_check).total_seconds() >= 60:
+                last_crypto_check = now
+                all_coin_ids = set()
+                for contact in config.get("contacts", []):
+                    if not contact.get("enabled"):
+                        continue
+                    c_crypto = contact.get("crypto", {})
+                    if not c_crypto.get("enabled"):
+                        continue
+                    for coin in c_crypto.get("coins", []):
+                        coin_id = SYMBOL_TO_COINGECKO.get(coin.get("symbol", "").lower())
+                        if coin_id:
+                            all_coin_ids.add(coin_id)
+
+                if all_coin_ids:
+                    prices = get_crypto_prices(list(all_coin_ids))
+                    if prices:
+                        for contact in config.get("contacts", []):
+                            if not contact.get("enabled"):
+                                continue
+                            c_crypto = contact.get("crypto", {})
+                            if not c_crypto.get("enabled"):
+                                continue
+                            contact_id = contact.get("id")
+                            alerts = check_crypto_alerts(c_crypto, prices, crypto_alert_state, contact_id)
+                            for alert in alerts:
                                 try:
-                                    await client.send_message("me", msg)
-                                    add_log("crypto", msg, "Saved Messages")
+                                    await client.send_message(contact["phone"], alert["message"])
+                                    add_log("crypto", alert["message"], contact.get("name"))
                                 except Exception as e:
-                                    print(f"Crypto self-send error: {e}")
-                            for contact in config.get("contacts", []):
-                                if not contact.get("enabled"):
-                                    continue
-                                c_crypto = contact.get("crypto", {})
-                                if not c_crypto.get("enabled"):
-                                    continue
-                                if alert["coin_id"] in c_crypto.get("coins", []):
-                                    try:
-                                        await client.send_message(contact["phone"], msg)
-                                        add_log("crypto", msg, contact.get("name"))
-                                    except Exception as e:
-                                        print(f"Crypto send error: {e}")
+                                    print(f"Crypto send error: {e}")
 
             update_status(client.is_connected())
 

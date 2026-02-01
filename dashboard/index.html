@@ -21,10 +21,10 @@
                 <div class="header-btns">
                     <button class="lang-btn active" onclick="setLang('ru')">RU</button>
                     <button class="lang-btn" onclick="setLang('en')">EN</button>
+                    <button class="help-btn" onclick="showHelpModal()" title="?">?</button>
                     <button class="btn" onclick="showAddModal()" data-i18n="add_contact">+ Добавить</button>
                 </div>
             </header>
-            <div id="cryptoGlobal"></div>
             <div class="contacts-grid" id="contacts"></div>
         </div>
         <div class="sidebar">
@@ -54,6 +54,16 @@
         </div>
     </div>
 
+    <div class="modal-overlay" id="helpModal">
+        <div class="modal">
+            <div class="modal-title" id="helpTitle"></div>
+            <div class="help-text" id="helpText"></div>
+            <div class="modal-btns">
+                <button class="btn btn-success" onclick="hideHelpModal()" id="helpClose"></button>
+            </div>
+        </div>
+    </div>
+
     <script src="i18n/ru.js"></script>
     <script src="i18n/en.js"></script>
     <script src="i18n.js"></script>
@@ -63,11 +73,12 @@
         let logs = [];
         let lang = localStorage.getItem('lang') || 'ru';
         let openTabs = {};
-        let cryptoPanelOpen = false;
 
         const DAYS_KEYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
         function t(key) { return i18n[lang][key] || key; }
+        function fmtPrice(n) { return n ? Number(n).toLocaleString('en-US') : '0'; }
+        function parsePrice(s) { return parseFloat(String(s).replace(/,/g,'')) || 0; }
 
         function setLang(l) {
             lang = l;
@@ -108,10 +119,17 @@
             const el = document.getElementById('contacts');
             if (!config.contacts.length) {
                 el.innerHTML = `<div class="empty">${t('no_contacts')}</div>`;
-            } else {
-                el.innerHTML = config.contacts.map((c, i) => renderCard(c, i)).join('');
+                return;
             }
-            renderCryptoGlobal();
+            const gap = 15;
+            const minCol = 320;
+            const w = el.offsetWidth || 960;
+            const numCols = Math.max(1, Math.floor((w + gap) / (minCol + gap)));
+            const cols = Array.from({length: numCols}, () => []);
+            config.contacts.forEach((c, i) => {
+                cols[i % numCols].push(renderCard(c, i));
+            });
+            el.innerHTML = cols.map(col => `<div class="contacts-column">${col.join('')}</div>`).join('');
         }
 
         function getTabContent(c, idx, tab) {
@@ -207,7 +225,7 @@
 
             if (tab === 'crypto') {
                 const cc = c.crypto || {};
-                const globalCoins = config.crypto?.coins || [];
+                const coins = cc.coins || [];
                 return `<div class="tab-content">
                     <div class="form-row">
                         <label>${t('crypto_alerts')}</label>
@@ -216,19 +234,34 @@
                             <span class="slider"></span>
                         </label>
                     </div>
-                    <div class="form-row"><label>${t('crypto_coins')}</label></div>
-                    <div class="coins-checklist">
-                        ${globalCoins.length ? globalCoins.map(coin => {
-                            const checked = (cc.coins || []).includes(coin.id);
-                            return `<div class="coin-check-item">
-                                <label class="toggle toggle-mini">
-                                    <input type="checkbox" ${checked ? 'checked' : ''} onchange="toggleContactCoin(${idx},'${coin.id}',this.checked)">
-                                    <span class="slider"></span>
-                                </label>
-                                <span class="coin-label">${esc(coin.symbol || coin.id)}</span>
-                            </div>`;
-                        }).join('') : `<div class="empty">${t('no_coins_configured')}</div>`}
+                    <div class="coins-list">
+                        ${coins.map((coin, ci) => `<div class="coin-card">
+                            <div class="coin-header">
+                                <input class="coin-symbol" value="${esc(coin.symbol)}" onchange="updContactCoin(${idx},${ci},'symbol',this.value)" placeholder="BTC" maxlength="10">
+                                <span class="msg-del" onclick="delContactCoin(${idx},${ci})">×</span>
+                            </div>
+                            <div class="alerts-list">
+                                ${(coin.alerts||[]).map((a, ai) => `<div class="alert-row">
+                                    <select onchange="updContactAlert(${idx},${ci},${ai},'type',this.value)">
+                                        <option value="price_above" ${a.type==='price_above'?'selected':''}>${t('price_above')}</option>
+                                        <option value="price_below" ${a.type==='price_below'?'selected':''}>${t('price_below')}</option>
+                                        <option value="change_above" ${a.type==='change_above'?'selected':''}>${t('change_above')}</option>
+                                        <option value="change_below" ${a.type==='change_below'?'selected':''}>${t('change_below')}</option>
+                                    </select>
+                                    <input type="text" inputmode="decimal" value="${a.type.startsWith('change') ? a.value : fmtPrice(a.value)}" onchange="updContactAlert(${idx},${ci},${ai},'value',parsePrice(this.value))">
+                                    <span class="alert-unit">${a.type.startsWith('change')?'%':'$'}</span>
+                                    <span class="alert-repeat ${a.repeat?'active':''}" onclick="updContactAlert(${idx},${ci},${ai},'repeat',${!a.repeat})" title="${t('repeat')}">↻</span>
+                                    <label class="toggle toggle-mini">
+                                        <input type="checkbox" ${a.enabled?'checked':''} onchange="updContactAlert(${idx},${ci},${ai},'enabled',this.checked)">
+                                        <span class="slider"></span>
+                                    </label>
+                                    <span class="msg-del" onclick="delContactAlert(${idx},${ci},${ai})">×</span>
+                                </div>`).join('')}
+                                <button class="btn btn-sm" onclick="addContactAlert(${idx},${ci})" style="margin-top:6px">${t('add_alert')}</button>
+                            </div>
+                        </div>`).join('')}
                     </div>
+                    <button class="btn btn-sm btn-success" onclick="addContactCoin(${idx})">${t('add_coin')}</button>
                 </div>`;
             }
 
@@ -322,117 +355,44 @@
             save();
         }
 
-        // Crypto functions
-        function renderCryptoGlobal() {
-            const el = document.getElementById('cryptoGlobal');
-            const gc = config.crypto || {enabled:false,coins:[],send_to_self:true,check_interval:60};
-            el.innerHTML = `<div class="crypto-panel">
-                <div class="crypto-panel-header" onclick="toggleCryptoPanel()">
-                    <span class="section-title">${t('crypto_settings')}</span>
-                    <div style="display:flex;gap:10px;align-items:center">
-                        <label class="toggle" onclick="event.stopPropagation()">
-                            <input type="checkbox" ${gc.enabled?'checked':''} onchange="updGlobalCrypto('enabled',this.checked)">
-                            <span class="slider"></span>
-                        </label>
-                        <span class="crypto-expand">${cryptoPanelOpen?'▼':'▶'}</span>
-                    </div>
-                </div>
-                ${cryptoPanelOpen ? `<div class="crypto-panel-body">
-                    <div class="form-row">
-                        <label>${t('send_to_self')}</label>
-                        <label class="toggle">
-                            <input type="checkbox" ${gc.send_to_self?'checked':''} onchange="updGlobalCrypto('send_to_self',this.checked)">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <div class="form-row">
-                        <label>${t('check_interval')}</label>
-                        <input type="number" value="${gc.check_interval||60}" onchange="updGlobalCrypto('check_interval',+this.value)" style="width:80px">
-                    </div>
-                    <div class="coins-list">
-                        ${(gc.coins||[]).map((coin,ci) => renderCoinCard(coin,ci)).join('')}
-                    </div>
-                    <button class="btn btn-sm btn-success" onclick="addCoin()">${t('add_coin')}</button>
-                </div>` : ''}
-            </div>`;
-        }
-
-        function renderCoinCard(coin, ci) {
-            return `<div class="coin-card">
-                <div class="coin-header">
-                    <div class="form-row">
-                        <label>ID</label>
-                        <input value="${esc(coin.id)}" onchange="updCoin(${ci},'id',this.value)" placeholder="bitcoin">
-                    </div>
-                    <div class="form-row">
-                        <label>${t('symbol')}</label>
-                        <input value="${esc(coin.symbol)}" onchange="updCoin(${ci},'symbol',this.value)" placeholder="BTC" style="width:80px;flex:none">
-                    </div>
-                    <span class="msg-del" onclick="delCoin(${ci})">×</span>
-                </div>
-                <div class="alerts-list">
-                    ${(coin.alerts||[]).map((a,ai) => `<div class="alert-row">
-                        <select onchange="updAlert(${ci},${ai},'type',this.value)">
-                            <option value="price_above" ${a.type==='price_above'?'selected':''}>${t('price_above')}</option>
-                            <option value="price_below" ${a.type==='price_below'?'selected':''}>${t('price_below')}</option>
-                            <option value="change_above" ${a.type==='change_above'?'selected':''}>${t('change_above')}</option>
-                            <option value="change_below" ${a.type==='change_below'?'selected':''}>${t('change_below')}</option>
-                        </select>
-                        <input type="number" value="${a.value}" onchange="updAlert(${ci},${ai},'value',+this.value)">
-                        <span>${a.type.startsWith('change')?'%':'$'}</span>
-                        <label class="toggle toggle-mini">
-                            <input type="checkbox" ${a.enabled?'checked':''} onchange="updAlert(${ci},${ai},'enabled',this.checked)">
-                            <span class="slider"></span>
-                        </label>
-                        <span class="msg-del" onclick="delAlert(${ci},${ai})">×</span>
-                    </div>`).join('')}
-                    <button class="btn btn-sm" onclick="addAlert(${ci})" style="margin-top:6px">${t('add_alert')}</button>
-                </div>
-            </div>`;
-        }
-
-        function toggleCryptoPanel() { cryptoPanelOpen = !cryptoPanelOpen; renderCryptoGlobal(); }
-
-        function updGlobalCrypto(key, val) {
-            if (!config.crypto) config.crypto = {enabled:false,coins:[],send_to_self:true,check_interval:60};
-            config.crypto[key] = val;
-            save();
-        }
-
-        function updCoin(ci, key, val) { config.crypto.coins[ci][key] = val; save(); }
-
-        function addCoin() {
-            if (!config.crypto) config.crypto = {enabled:false,coins:[],send_to_self:true,check_interval:60};
-            if (!config.crypto.coins) config.crypto.coins = [];
-            config.crypto.coins.push({id:'',symbol:'',alerts:[]});
-            save(); renderCryptoGlobal();
-        }
-
-        function delCoin(ci) { config.crypto.coins.splice(ci,1); save(); renderCryptoGlobal(); }
-
-        function updAlert(ci, ai, key, val) { config.crypto.coins[ci].alerts[ai][key] = val; save(); renderCryptoGlobal(); }
-
-        function addAlert(ci) {
-            if (!config.crypto.coins[ci].alerts) config.crypto.coins[ci].alerts = [];
-            config.crypto.coins[ci].alerts.push({type:'price_above',value:0,enabled:true});
-            save(); renderCryptoGlobal();
-        }
-
-        function delAlert(ci, ai) { config.crypto.coins[ci].alerts.splice(ai,1); save(); renderCryptoGlobal(); }
-
+        // Crypto functions (per-contact)
         function updC(idx, key, val) {
             if (!config.contacts[idx].crypto) config.contacts[idx].crypto = {enabled:false,coins:[]};
             config.contacts[idx].crypto[key] = val;
             save();
         }
 
-        function toggleContactCoin(idx, coinId, checked) {
+        function addContactCoin(idx) {
             if (!config.contacts[idx].crypto) config.contacts[idx].crypto = {enabled:false,coins:[]};
-            const coins = config.contacts[idx].crypto.coins || [];
-            if (checked && !coins.includes(coinId)) { coins.push(coinId); }
-            else if (!checked) { const i = coins.indexOf(coinId); if (i > -1) coins.splice(i,1); }
-            config.contacts[idx].crypto.coins = coins;
+            if (!config.contacts[idx].crypto.coins) config.contacts[idx].crypto.coins = [];
+            config.contacts[idx].crypto.coins.push({symbol:'',alerts:[]});
+            save(); render();
+        }
+
+        function delContactCoin(idx, ci) {
+            config.contacts[idx].crypto.coins.splice(ci, 1);
+            save(); render();
+        }
+
+        function updContactCoin(idx, ci, key, val) {
+            config.contacts[idx].crypto.coins[ci][key] = val;
             save();
+        }
+
+        function addContactAlert(idx, ci) {
+            if (!config.contacts[idx].crypto.coins[ci].alerts) config.contacts[idx].crypto.coins[ci].alerts = [];
+            config.contacts[idx].crypto.coins[ci].alerts.push({type:'price_above',value:0,enabled:true,repeat:false});
+            save(); render();
+        }
+
+        function delContactAlert(idx, ci, ai) {
+            config.contacts[idx].crypto.coins[ci].alerts.splice(ai, 1);
+            save(); render();
+        }
+
+        function updContactAlert(idx, ci, ai, key, val) {
+            config.contacts[idx].crypto.coins[ci].alerts[ai][key] = val;
+            save(); render();
         }
 
         function addMsg(idx) {
@@ -512,6 +472,17 @@
             }
         }
 
+        function showHelpModal() {
+            document.getElementById('helpTitle').textContent = t('help_title');
+            document.getElementById('helpText').textContent = t('help_crypto');
+            document.getElementById('helpClose').textContent = t('help_close');
+            document.getElementById('helpModal').classList.add('show');
+        }
+
+        function hideHelpModal() {
+            document.getElementById('helpModal').classList.remove('show');
+        }
+
         function esc(s) {
             if (!s) return '';
             return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -540,6 +511,7 @@
         load();
         setLang(lang);
         checkStatus();
+        window.addEventListener('resize', () => render());
         setInterval(async () => {
             const res = await fetch(`${API}/logs`);
             logs = await res.json();
